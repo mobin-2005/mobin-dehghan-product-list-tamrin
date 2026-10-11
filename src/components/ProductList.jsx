@@ -1,33 +1,73 @@
+
 import { useEffect, useState } from "react";
+import ProductFilters from "./ProductFilters";
+import ProductCard from "./ProductCard";
+import ShoppingCart from "./ShoppingCart";
+import Pagination from "./Pagination";
+
+function getSavedFilters() {
+  try {
+    return JSON.parse(localStorage.getItem("productFilters")) || {};
+  } catch {
+    return {};
+  }
+}
 
 function ProductList() {
+  const [savedFilters] = useState(getSavedFilters);
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [sortOrder, setSortOrder] = useState("default");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+
+  const [selectedCategory, setSelectedCategory] = useState(
+    savedFilters.selectedCategory || "all"
+  );
+  const [sortOrder, setSortOrder] = useState(
+    savedFilters.sortOrder || "default"
+  );
+  const [searchTerm, setSearchTerm] = useState(
+    savedFilters.searchTerm || ""
+  );
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(
+    savedFilters.searchTerm || ""
+  );
+  const [minPrice, setMinPrice] = useState(savedFilters.minPrice || "");
+  const [maxPrice, setMaxPrice] = useState(savedFilters.maxPrice || "");
+
+  const [selectedProduct, setSelectedProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [minPrice, setMinPrice] = useState("");
-  const [maxPrice, setMaxPrice] = useState("");
 
   const productsPerPage = 6;
 
   const [cart, setCart] = useState(() => {
     try {
-      const savedCart = localStorage.getItem("cart");
-      return savedCart ? JSON.parse(savedCart) : [];
+      return JSON.parse(localStorage.getItem("cart")) || [];
     } catch {
       return [];
     }
   });
 
+  // Save cart
   useEffect(() => {
     localStorage.setItem("cart", JSON.stringify(cart));
   }, [cart]);
 
+  // Save filters
+  useEffect(() => {
+    localStorage.setItem(
+      "productFilters",
+      JSON.stringify({
+        selectedCategory,
+        sortOrder,
+        searchTerm,
+        minPrice,
+        maxPrice,
+      })
+    );
+  }, [selectedCategory, sortOrder, searchTerm, minPrice, maxPrice]);
+
+  // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
@@ -36,6 +76,7 @@ function ProductList() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
+  // Fetch products and cache categories
   useEffect(() => {
     fetch("https://fakestoreapi.com/products")
       .then((response) => {
@@ -48,29 +89,27 @@ function ProductList() {
       .then((data) => {
         setProducts(data);
 
-        const cachedCategories = localStorage.getItem("categories");
+        let cachedCategories;
 
-        if (cachedCategories) {
-          try {
-            setCategories(JSON.parse(cachedCategories));
-          } catch {
-            const uniqueCategories = [
-              ...new Set(data.map((product) => product.category)),
-            ];
+        try {
+          cachedCategories = JSON.parse(
+            localStorage.getItem("categories")
+          );
+        } catch {
+          cachedCategories = null;
+        }
 
-            setCategories(uniqueCategories);
-            localStorage.setItem(
-              "categories",
-              JSON.stringify(uniqueCategories)
-            );
-          }
+        if (
+          Array.isArray(cachedCategories) &&
+          cachedCategories.length > 0
+        ) {
+          setCategories(cachedCategories);
         } else {
           const uniqueCategories = [
             ...new Set(data.map((product) => product.category)),
           ];
 
           setCategories(uniqueCategories);
-
           localStorage.setItem(
             "categories",
             JSON.stringify(uniqueCategories)
@@ -85,6 +124,7 @@ function ProductList() {
       });
   }, []);
 
+  // Filter products
   const filteredProducts = products.filter((product) => {
     const matchesCategory =
       selectedCategory === "all" ||
@@ -108,6 +148,7 @@ function ProductList() {
     );
   });
 
+  // Sort products
   const sortedProducts = [...filteredProducts].sort((a, b) => {
     if (sortOrder === "low-to-high") {
       return a.price - b.price;
@@ -131,7 +172,8 @@ function ProductList() {
     startIndex + productsPerPage
   );
 
-  const addToCart = (product) => {
+  // Add product to cart
+  const addToCart = (product, showSimilar = true) => {
     setCart((previousCart) => {
       const existingProduct = previousCart.find(
         (item) => item.id === product.id
@@ -147,13 +189,25 @@ function ProductList() {
 
       return [...previousCart, { ...product, quantity: 1 }];
     });
+
+    if (showSimilar) {
+      setSelectedProduct(product);
+    }
   };
 
-  const removeFromCart = (productId) => {
-    setCart((previousCart) =>
-      previousCart.filter((item) => item.id !== productId)
-    );
-  };
+  // Remove product from cart
+
+const removeFromCart = (productId) => {
+  setCart((previousCart) =>
+    previousCart
+      .map((item) =>
+        item.id === productId
+          ? { ...item, quantity: item.quantity - 1 }
+          : item
+      )
+      .filter((item) => item.quantity > 0)
+  );
+};
 
   if (loading) {
     return <p>در حال دریافت محصولات...</p>;
@@ -167,95 +221,31 @@ function ProductList() {
     <section>
       <h2>Products</h2>
 
-      <input
-        type="text"
-        placeholder="Search products..."
-        value={searchTerm}
-        onChange={(event) => {
-          setSearchTerm(event.target.value);
-          setCurrentPage(1);
-        }}
+      <ProductFilters
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        minPrice={minPrice}
+        setMinPrice={setMinPrice}
+        maxPrice={maxPrice}
+        setMaxPrice={setMaxPrice}
+        categories={categories}
+        selectedCategory={selectedCategory}
+        setSelectedCategory={setSelectedCategory}
+        sortOrder={sortOrder}
+        setSortOrder={setSortOrder}
+        setCurrentPage={setCurrentPage}
       />
-
-      <div className="price-filter">
-        <label htmlFor="minPrice">Minimum price ($): </label>
-        <input
-          id="minPrice"
-          type="number"
-          min="0"
-          placeholder="Min price"
-          value={minPrice}
-          onChange={(event) => {
-            setMinPrice(event.target.value);
-            setCurrentPage(1);
-          }}
-        />
-
-        <label htmlFor="maxPrice">Maximum price ($): </label>
-        <input
-          id="maxPrice"
-          type="number"
-          min="0"
-          placeholder="Max price"
-          value={maxPrice}
-          onChange={(event) => {
-            setMaxPrice(event.target.value);
-            setCurrentPage(1);
-          }}
-        />
-      </div>
-
-      <label htmlFor="category">Filter by category: </label>
-      <select
-        id="category"
-        value={selectedCategory}
-        onChange={(event) => {
-          setSelectedCategory(event.target.value);
-          setCurrentPage(1);
-        }}
-      >
-        <option value="all">All products</option>
-
-        {categories.map((category) => (
-          <option key={category} value={category}>
-            {category}
-          </option>
-        ))}
-      </select>
-
-      {/* Price sorting */}
-      <label htmlFor="sort">Sort by price: </label>
-      <select
-        id="sort"
-        value={sortOrder}
-        onChange={(event) => {
-          setSortOrder(event.target.value);
-          setCurrentPage(1);
-        }}
-      >
-        <option value="default">Default</option>
-        <option value="low-to-high">Price: Low to High</option>
-        <option value="high-to-low">Price: High to Low</option>
-      </select>
 
       <div className="product-list">
         {paginatedProducts.map((product) => (
-          <article className="product-card" key={product.id}>
-            <img
-              src={product.image}
-              alt={product.title}
-              width="120"
-              height="120"
-            />
-
-            <h3>{product.title}</h3>
-            <p>${product.price}</p>
-            <p>{product.category}</p>
-
-            <button onClick={() => addToCart(product)}>
-              Add to Cart
-            </button>
-          </article>
+          <ProductCard
+            key={product.id}
+            product={product}
+            products={products}
+            selectedProduct={selectedProduct}
+            onAddToCart={addToCart}
+            onCloseSimilar={() => setSelectedProduct(null)}
+          />
         ))}
       </div>
 
@@ -263,70 +253,13 @@ function ProductList() {
         <p>No products found.</p>
       )}
 
-      {totalPages > 0 && (
-        <div className="pagination">
-          <button
-            onClick={() =>
-              setCurrentPage((page) => Math.max(1, page - 1))
-            }
-            disabled={currentPage === 1}
-          >
-            Previous
-          </button>
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        setCurrentPage={setCurrentPage}
+      />
 
-          <span>
-            Page {currentPage} of {totalPages}
-          </span>
-
-          <button
-            onClick={() =>
-              setCurrentPage((page) =>
-                Math.min(totalPages, page + 1)
-              )
-            }
-            disabled={currentPage >= totalPages}
-          >
-            Next
-          </button>
-        </div>
-      )}
-
-      <section className="shopping-cart">
-        <h2>Shopping Cart ({cart.length} products)</h2>
-
-        {cart.length === 0 ? (
-          <p>Your cart is empty.</p>
-        ) : (
-          <>
-            {cart.map((item) => (
-              <article className="cart-item" key={item.id}>
-                <h3>{item.title}</h3>
-                <p>Price: ${item.price}</p>
-                <p>Quantity: {item.quantity}</p>
-                <p>
-                  Subtotal: $
-                  {(item.price * item.quantity).toFixed(2)}
-                </p>
-
-                <button onClick={() => removeFromCart(item.id)}>
-                  Remove
-                </button>
-              </article>
-            ))}
-
-            <h3>
-              Total: $
-              {cart
-                .reduce(
-                  (total, item) =>
-                    total + item.price * item.quantity,
-                  0
-                )
-                .toFixed(2)}
-            </h3>
-          </>
-        )}
-      </section>
+      <ShoppingCart cart={cart} onRemove={removeFromCart} />
     </section>
   );
 }
