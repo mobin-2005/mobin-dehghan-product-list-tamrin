@@ -9,6 +9,8 @@ function ProductList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
 
   const productsPerPage = 6;
 
@@ -39,20 +41,30 @@ function ProductList() {
       });
   }, []);
 
-  // Filter products by category and search term
-  const filteredProducts = products.filter((product) => {
-    const matchesCategory =
-      selectedCategory === "all" ||
-      product.category === selectedCategory;
 
-    const matchesSearch = product.title
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
+const filteredProducts = products.filter((product) => {
+  const matchesCategory =
+    selectedCategory === "all" ||
+    product.category === selectedCategory;
 
-    return matchesCategory && matchesSearch;
-  });
+  const matchesSearch = product.title
+    .toLowerCase()
+    .includes(searchTerm.toLowerCase());
 
-  // Sort products by price
+  const matchesMinPrice =
+    minPrice === "" || product.price >= Number(minPrice);
+
+  const matchesMaxPrice =
+    maxPrice === "" || product.price <= Number(maxPrice);
+
+  return (
+    matchesCategory &&
+    matchesSearch &&
+    matchesMinPrice &&
+    matchesMaxPrice
+  );
+});
+
   const sortedProducts = [...filteredProducts].sort((a, b) => {
     if (sortOrder === "low-to-high") {
       return a.price - b.price;
@@ -101,6 +113,35 @@ function ProductList() {
           setCurrentPage(1);
         }}
       />
+
+{/* Price filter */}
+<div className="price-filter">
+  <label htmlFor="minPrice">Minimum price ($): </label>
+  <input
+    id="minPrice"
+    type="number"
+    min="0"
+    placeholder="Min price"
+    value={minPrice}
+    onChange={(event) => {
+      setMinPrice(event.target.value);
+      setCurrentPage(1);
+    }}
+  />
+
+  <label htmlFor="maxPrice">Maximum price ($): </label>
+  <input
+    id="maxPrice"
+    type="number"
+    min="0"
+    placeholder="Max price"
+    value={maxPrice}
+    onChange={(event) => {
+      setMaxPrice(event.target.value);
+      setCurrentPage(1);
+    }}
+  />
+</div>
 
       {/* Category filter */}
       <label htmlFor="category">
