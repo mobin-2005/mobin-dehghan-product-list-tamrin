@@ -1,11 +1,13 @@
+
+import ProductList from "./components/ProductList";
+
 function App() {
   return (
-    <div>
-      <card>
-        <img src="" height="80px" width="80px" />
-      </card>
-    </div>
-  )
+    <main>
+      <h1>Product Store</h1>
+      <ProductList />
+    </main>
+  );
 }
 
 export default App;
