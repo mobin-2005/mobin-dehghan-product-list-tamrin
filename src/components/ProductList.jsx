@@ -5,6 +5,7 @@ function ProductList() {
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [sortOrder, setSortOrder] = useState("default");
+  const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -34,12 +35,18 @@ function ProductList() {
   }, []);
 
   
-const filteredProducts =
-  selectedCategory === "all"
-    ? products
-    : products.filter(
-        (product) => product.category === selectedCategory
-      );
+
+const filteredProducts = products.filter((product) => {
+  const matchesCategory =
+    selectedCategory === "all" ||
+    product.category === selectedCategory;
+
+  const matchesSearch = product.title
+    .toLowerCase()
+    .includes(searchTerm.toLowerCase());
+
+  return matchesCategory && matchesSearch;
+});
 
 const sortedProducts = [...filteredProducts].sort((a, b) => {
   if (sortOrder === "low-to-high") {
@@ -59,6 +66,14 @@ const sortedProducts = [...filteredProducts].sort((a, b) => {
   return (
     <section>
       <h2>Products</h2>
+      
+<input
+  type="text"
+  placeholder="Search products..."
+  value={searchTerm}
+  onChange={(event) => setSearchTerm(event.target.value)}
+/>
+
 
       <label htmlFor="category">Filter by category: </label>
 
