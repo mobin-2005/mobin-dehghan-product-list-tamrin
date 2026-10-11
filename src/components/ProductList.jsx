@@ -4,6 +4,7 @@ function ProductList() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [sortOrder, setSortOrder] = useState("default");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -32,12 +33,25 @@ function ProductList() {
       });
   }, []);
 
-  const filteredProducts =
-    selectedCategory === "all"
-      ? products
-      : products.filter(
-          (product) => product.category === selectedCategory
-        );
+  
+const filteredProducts =
+  selectedCategory === "all"
+    ? products
+    : products.filter(
+        (product) => product.category === selectedCategory
+      );
+
+const sortedProducts = [...filteredProducts].sort((a, b) => {
+  if (sortOrder === "low-to-high") {
+    return a.price - b.price;
+  }
+
+  if (sortOrder === "high-to-low") {
+    return b.price - a.price;
+  }
+
+  return 0;
+});
 
   if (loading) return <p>در حال دریافت محصولات...</p>;
   if (error) return <p>{error}</p>;
@@ -61,9 +75,21 @@ function ProductList() {
           </option>
         ))}
       </select>
+      
+<label htmlFor="sort">Sort by price: </label>
+
+<select
+  id="sort"
+  value={sortOrder}
+  onChange={(event) => setSortOrder(event.target.value)}
+>
+  <option value="default">Default</option>
+  <option value="low-to-high">Price: Low to High</option>
+  <option value="high-to-low">Price: High to Low</option>
+</select>
 
       <div className="product-list">
-        {filteredProducts.map((product) => (
+        {sortedProducts.map((product) => (
           <article className="product-card" key={product.id}>
             <img
               src={product.image}
