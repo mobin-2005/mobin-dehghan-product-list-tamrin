@@ -6,6 +6,7 @@ function ProductList() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [sortOrder, setSortOrder] = useState("default");
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -14,7 +15,13 @@ function ProductList() {
 
   const productsPerPage = 6;
 
-  // Fetch products from API
+  useEffect(() => {
+  const timer = setTimeout(() => {
+    setDebouncedSearchTerm(searchTerm);
+  }, 500);
+
+  return () => clearTimeout(timer);
+}, [searchTerm]);
   useEffect(() => {
     fetch("https://fakestoreapi.com/products")
       .then((response) => {
@@ -47,9 +54,9 @@ const filteredProducts = products.filter((product) => {
     selectedCategory === "all" ||
     product.category === selectedCategory;
 
-  const matchesSearch = product.title
-    .toLowerCase()
-    .includes(searchTerm.toLowerCase());
+    const matchesSearch = product.title
+  .toLowerCase()
+  .includes(debouncedSearchTerm.toLowerCase());
 
   const matchesMinPrice =
     minPrice === "" || product.price >= Number(minPrice);
