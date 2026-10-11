@@ -32,14 +32,25 @@ function ProductList() {
         return response.json();
       })
       .then((data) => {
-        setProducts(data);
+  setProducts(data);
 
-        const uniqueCategories = [
-          ...new Set(data.map((product) => product.category)),
-        ];
+  const cachedCategories = localStorage.getItem("categories");
 
-        setCategories(uniqueCategories);
-      })
+  if (cachedCategories) {
+    setCategories(JSON.parse(cachedCategories));
+  } else {
+    const uniqueCategories = [
+      ...new Set(data.map((product) => product.category)),
+    ];
+
+    setCategories(uniqueCategories);
+
+    localStorage.setItem(
+      "categories",
+      JSON.stringify(uniqueCategories)
+    );
+  }
+})
       .catch(() => {
         setError("خطا در دریافت محصولات!");
       })
